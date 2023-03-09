@@ -1,6 +1,6 @@
 {
   "name": "@jafri/bitcoinjs-lib",
-  "version": "6.1.8",
+  "version": "6.1.9",
   "description": "Client-side Bitcoin JavaScript library",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -35,6 +35,7 @@
     "nobuild:coverage-html": "nyc report --reporter=html",
     "nobuild:coverage": "npm run build:tests && nyc --check-coverage --branches 90 --functions 90 --lines 90 mocha && npm run clean:jstests",
     "nobuild:integration": "npm run mocha:ts -- --timeout 50000 'test/integration/*.ts'",
+    "tr": "npm run mocha:ts -- --timeout 50000 'test/integration/taproot.spec.ts'",
     "nobuild:unit": "npm run mocha:ts -- 'test/*.ts'",
     "prettier": "prettier \"ts_src/**/*.ts\" \"test/**/*.ts\" --ignore-path ./.prettierignore",
     "prettierjs": "prettier \"src/**/*.js\" --ignore-path ./.prettierignore",
