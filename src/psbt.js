@@ -1,15 +1,63 @@
 'use strict';
+var __createBinding =
+  (this && this.__createBinding) ||
+  (Object.create
+    ? function (o, m, k, k2) {
+        if (k2 === undefined) k2 = k;
+        var desc = Object.getOwnPropertyDescriptor(m, k);
+        if (
+          !desc ||
+          ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)
+        ) {
+          desc = {
+            enumerable: true,
+            get: function () {
+              return m[k];
+            },
+          };
+        }
+        Object.defineProperty(o, k2, desc);
+      }
+    : function (o, m, k, k2) {
+        if (k2 === undefined) k2 = k;
+        o[k2] = m[k];
+      });
+var __setModuleDefault =
+  (this && this.__setModuleDefault) ||
+  (Object.create
+    ? function (o, v) {
+        Object.defineProperty(o, 'default', { enumerable: true, value: v });
+      }
+    : function (o, v) {
+        o['default'] = v;
+      });
+var __importStar =
+  (this && this.__importStar) ||
+  function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null)
+      for (var k in mod)
+        if (k !== 'default' && Object.prototype.hasOwnProperty.call(mod, k))
+          __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+  };
 Object.defineProperty(exports, '__esModule', { value: true });
-exports.Psbt = void 0;
+exports.getTaprootHashesForSig =
+  exports.getTaprootHashesForSigCustom =
+  exports.getAllTaprootHashesForSig =
+  exports.Psbt =
+    void 0;
 const bip174_1 = require('bip174');
-const varuint = require('bip174/src/lib/converter/varint');
+const varuint = __importStar(require('bip174/src/lib/converter/varint'));
 const utils_1 = require('bip174/src/lib/utils');
 const address_1 = require('./address');
 const bufferutils_1 = require('./bufferutils');
 const networks_1 = require('./networks');
-const payments = require('./payments');
+const payments = __importStar(require('./payments'));
 const bip341_1 = require('./payments/bip341');
-const bscript = require('./script');
+const bscript = __importStar(require('./script'));
 const transaction_1 = require('./transaction');
 const bip371_1 = require('./psbt/bip371');
 const psbtutils_1 = require('./psbt/psbtutils');
@@ -248,7 +296,7 @@ class Psbt {
     c.__EXTRACTED_TX = undefined;
     return this;
   }
-  extractTransaction(disableFeeCheck) {
+  extractTransaction(disableFeeCheck, disableOutputsMoreThanInputs) {
     if (!this.data.inputs.every(isFinalized)) throw new Error('Not finalized');
     const c = this.__CACHE;
     if (!disableFeeCheck) {
@@ -256,7 +304,13 @@ class Psbt {
     }
     if (c.__EXTRACTED_TX) return c.__EXTRACTED_TX;
     const tx = c.__TX.clone();
-    inputFinalizeGetAmts(this.data.inputs, tx, c, true);
+    inputFinalizeGetAmts(
+      this.data.inputs,
+      tx,
+      c,
+      true,
+      disableOutputsMoreThanInputs,
+    );
     return tx;
   }
   getFeeRate() {
@@ -1292,6 +1346,74 @@ function getAllTaprootHashesForSig(inputIndex, input, inputs, cache) {
   );
   return allHashes.flat();
 }
+exports.getAllTaprootHashesForSig = getAllTaprootHashesForSig;
+function getTaprootHashesForSigCustom(
+  inputIndex,
+  input,
+  inputs,
+  pubkey,
+  cache,
+  tapLeafHashToSign,
+  allowedSighashTypes,
+) {
+  const unsignedTx = cache.__TX;
+  const sighashType =
+    input.sighashType || transaction_1.Transaction.SIGHASH_DEFAULT;
+  checkSighashTypeAllowed(sighashType, allowedSighashTypes);
+  const prevOuts = inputs.map((i, index) =>
+    getScriptAndAmountFromUtxo(index, i, cache),
+  );
+  const signingScripts = prevOuts.map(o => o.script);
+  const values = prevOuts.map(o => o.value);
+  const hashes = [];
+  const tapKeyHash = unsignedTx.hashForWitnessV1(
+    inputIndex,
+    signingScripts,
+    values,
+    sighashType,
+  );
+  hashes.push({ pubkey, hash: tapKeyHash });
+  if (input.tapInternalKey && !tapLeafHashToSign) {
+    const outputKey = (0, bip371_1.tweakInternalPubKey)(inputIndex, input);
+    if ((0, bip371_1.toXOnly)(pubkey).equals(outputKey)) {
+      const tapKeyHash = unsignedTx.hashForWitnessV1(
+        inputIndex,
+        signingScripts,
+        values,
+        sighashType,
+      );
+      hashes.push({ pubkey, hash: tapKeyHash });
+    }
+  }
+  const tapLeafHashes = (input.tapLeafScript || [])
+    .filter(tapLeaf => (0, psbtutils_1.pubkeyInScript)(pubkey, tapLeaf.script))
+    .map(tapLeaf => {
+      const hash = (0, bip341_1.tapleafHash)({
+        output: tapLeaf.script,
+        version: tapLeaf.leafVersion,
+      });
+      return Object.assign({ hash }, tapLeaf);
+    })
+    .filter(
+      tapLeaf => !tapLeafHashToSign || tapLeafHashToSign.equals(tapLeaf.hash),
+    )
+    .map(tapLeaf => {
+      const tapScriptHash = unsignedTx.hashForWitnessV1(
+        inputIndex,
+        signingScripts,
+        values,
+        transaction_1.Transaction.SIGHASH_DEFAULT,
+        tapLeaf.hash,
+      );
+      return {
+        pubkey,
+        hash: tapScriptHash,
+        leafHash: tapLeaf.hash,
+      };
+    });
+  return hashes.concat(tapLeafHashes);
+}
+exports.getTaprootHashesForSigCustom = getTaprootHashesForSigCustom;
 function getTaprootHashesForSig(
   inputIndex,
   input,
@@ -1351,6 +1473,7 @@ function getTaprootHashesForSig(
     });
   return hashes.concat(tapLeafHashes);
 }
+exports.getTaprootHashesForSig = getTaprootHashesForSig;
 function checkSighashTypeAllowed(sighashType, sighashTypes) {
   if (sighashTypes && sighashTypes.indexOf(sighashType) < 0) {
     const str = sighashTypeToString(sighashType);
@@ -1535,7 +1658,13 @@ function addNonWitnessTxCache(cache, input, inputIndex) {
     },
   });
 }
-function inputFinalizeGetAmts(inputs, tx, cache, mustFinalize) {
+function inputFinalizeGetAmts(
+  inputs,
+  tx,
+  cache,
+  mustFinalize,
+  disableOutputsMoreThanInputs,
+) {
   let inputAmount = 0;
   inputs.forEach((input, idx) => {
     if (mustFinalize && input.finalScriptSig)
@@ -1556,7 +1685,7 @@ function inputFinalizeGetAmts(inputs, tx, cache, mustFinalize) {
   });
   const outputAmount = tx.outs.reduce((total, o) => total + o.value, 0);
   const fee = inputAmount - outputAmount;
-  if (fee < 0) {
+  if (fee < 0 && !disableOutputsMoreThanInputs) {
     throw new Error('Outputs are spending more than Inputs');
   }
   const bytes = tx.virtualSize();

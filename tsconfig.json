@@ -10,12 +10,13 @@
     ],
     "allowJs": false,
     "strict": true,
-    "esModuleInterop": false,
+    "esModuleInterop": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
   "include": [
-      "ts_src/**/*.ts"
+    "ts_src/**/*.ts",
+    "ts_src/**/*.d.ts",
   ],
   "exclude": [
       "**/*.spec.ts",

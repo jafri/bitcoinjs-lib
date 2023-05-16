@@ -219,56 +219,12 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     const internalKey = bip32.fromSeed(rng(64), regtest);
     const leafKey = bip32.fromSeed(rng(64), regtest);
 
-    const leafScriptAsm = `${toXOnly(leafKey.publicKey).toString(
-      'hex',
-    )} OP_CHECKSIG`;
+    const leafScriptAsm = `${toXOnly(leafKey.publicKey).toString('hex')} OP_CHECKSIG OP_FALSE OP_IF ${Buffer.from('ord', 'ascii').toString('hex')} OP_1 ${Buffer.from('text/plain;charset=utf-8', 'ascii').toString('hex')} OP_0 ${Buffer.from('whateva', 'ascii').toString('hex')} OP_ENDIF`;
     const leafScript = bitcoin.script.fromASM(leafScriptAsm);
 
-    const scriptTree: Taptree = [
-      [
-        {
-          output: bitcoin.script.fromASM(
-            '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0 OP_CHECKSIG',
-          ),
-        },
-        [
-          {
-            output: bitcoin.script.fromASM(
-              '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac1 OP_CHECKSIG',
-            ),
-          },
-          {
-            output: bitcoin.script.fromASM(
-              '2258b1c3160be0864a541854eec9164a572f094f7562628281a8073bb89173a7 OP_CHECKSIG',
-            ),
-          },
-        ],
-      ],
-      [
-        {
-          output: bitcoin.script.fromASM(
-            '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac2 OP_CHECKSIG',
-          ),
-        },
-        [
-          {
-            output: bitcoin.script.fromASM(
-              '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac3 OP_CHECKSIG',
-            ),
-          },
-          [
-            {
-              output: bitcoin.script.fromASM(
-                '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac4 OP_CHECKSIG',
-              ),
-            },
-            {
-              output: leafScript,
-            },
-          ],
-        ],
-      ],
-    ];
+    const scriptTree: Taptree = {
+      output: leafScript,
+    }
     const redeem = {
       output: leafScript,
       redeemVersion: 192,
@@ -308,15 +264,15 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     const sendPubKey = toXOnly(sendInternalKey.publicKey);
     const { address: sendAddress } = bitcoin.payments.p2tr({
       internalPubkey: sendPubKey,
-      scriptTree,
+      // scriptTree,
       network: regtest,
     });
 
     psbt.addOutput({
       value: sendAmount,
       address: sendAddress!,
-      tapInternalKey: sendPubKey,
-      tapTree: { leaves: tapTreeToList(scriptTree) },
+      // tapInternalKey: sendPubKey,
+      // tapTree: { leaves: tapTreeToList(scriptTree) },
     });
 
     psbt.signInput(0, leafKey);

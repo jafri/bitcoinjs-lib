@@ -1,4 +1,48 @@
 'use strict';
+var __createBinding =
+  (this && this.__createBinding) ||
+  (Object.create
+    ? function (o, m, k, k2) {
+        if (k2 === undefined) k2 = k;
+        var desc = Object.getOwnPropertyDescriptor(m, k);
+        if (
+          !desc ||
+          ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)
+        ) {
+          desc = {
+            enumerable: true,
+            get: function () {
+              return m[k];
+            },
+          };
+        }
+        Object.defineProperty(o, k2, desc);
+      }
+    : function (o, m, k, k2) {
+        if (k2 === undefined) k2 = k;
+        o[k2] = m[k];
+      });
+var __setModuleDefault =
+  (this && this.__setModuleDefault) ||
+  (Object.create
+    ? function (o, v) {
+        Object.defineProperty(o, 'default', { enumerable: true, value: v });
+      }
+    : function (o, v) {
+        o['default'] = v;
+      });
+var __importStar =
+  (this && this.__importStar) ||
+  function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null)
+      for (var k in mod)
+        if (k !== 'default' && Object.prototype.hasOwnProperty.call(mod, k))
+          __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+  };
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.signature =
   exports.number =
@@ -14,7 +58,7 @@ exports.signature =
   exports.isPushOnly =
   exports.OPS =
     void 0;
-const bip66 = require('./bip66');
+const bip66 = __importStar(require('./bip66'));
 const ops_1 = require('./ops');
 Object.defineProperty(exports, 'OPS', {
   enumerable: true,
@@ -22,10 +66,10 @@ Object.defineProperty(exports, 'OPS', {
     return ops_1.OPS;
   },
 });
-const pushdata = require('./push_data');
-const scriptNumber = require('./script_number');
-const scriptSignature = require('./script_signature');
-const types = require('./types');
+const pushdata = __importStar(require('./push_data'));
+const scriptNumber = __importStar(require('./script_number'));
+const scriptSignature = __importStar(require('./script_signature'));
+const types = __importStar(require('./types'));
 const { typeforce } = types;
 const OP_INT_BASE = ops_1.OPS.OP_RESERVED; // OP_1 - 1
 function isOPInt(value) {
@@ -50,7 +94,8 @@ exports.countNonPushOnlyOPs = countNonPushOnlyOPs;
 function asMinimalOP(buffer) {
   if (buffer.length === 0) return ops_1.OPS.OP_0;
   if (buffer.length !== 1) return;
-  if (buffer[0] >= 1 && buffer[0] <= 16) return OP_INT_BASE + buffer[0];
+  // TODO
+  if (buffer[0] > 1 && buffer[0] <= 16) return OP_INT_BASE + buffer[0];
   if (buffer[0] === 0x81) return ops_1.OPS.OP_1NEGATE;
 }
 function chunksIsBuffer(buf) {

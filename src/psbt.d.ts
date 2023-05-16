@@ -76,7 +76,7 @@ export declare class Psbt {
     addInput(inputData: PsbtInputExtended): this;
     addOutputs(outputDatas: PsbtOutputExtended[]): this;
     addOutput(outputData: PsbtOutputExtended): this;
-    extractTransaction(disableFeeCheck?: boolean): Transaction;
+    extractTransaction(disableFeeCheck?: boolean, disableOutputsMoreThanInputs?: boolean): Transaction;
     getFeeRate(): number;
     getFee(): number;
     finalizeAllInputs(): this;
@@ -119,6 +119,18 @@ export declare class Psbt {
     addUnknownKeyValToOutput(outputIndex: number, keyVal: KeyValue): this;
     clearFinalizedInput(inputIndex: number): this;
 }
+interface PsbtCache {
+    __NON_WITNESS_UTXO_TX_CACHE: Transaction[];
+    __NON_WITNESS_UTXO_BUF_CACHE: Buffer[];
+    __TX_IN_CACHE: {
+        [index: string]: number;
+    };
+    __TX: Transaction;
+    __FEE_RATE?: number;
+    __FEE?: number;
+    __EXTRACTED_TX?: Transaction;
+    __UNSAFE_SIGN_NONSEGWIT: boolean;
+}
 interface PsbtOptsOptional {
     network?: Network;
     maximumFeeRate?: number;
@@ -126,7 +138,7 @@ interface PsbtOptsOptional {
 interface PsbtInputExtended extends PsbtInput, TransactionInput {
 }
 type PsbtOutputExtended = PsbtOutputExtendedAddress | PsbtOutputExtendedScript;
-interface PsbtOutputExtendedAddress extends PsbtOutput {
+export interface PsbtOutputExtendedAddress extends PsbtOutput {
     address: string;
     value: number;
 }
@@ -197,5 +209,20 @@ input: PsbtInput, // The PSBT input contents
 tapLeafHashToFinalize?: Buffer) => {
     finalScriptWitness: Buffer | undefined;
 };
+export declare function getAllTaprootHashesForSig(inputIndex: number, input: PsbtInput, inputs: PsbtInput[], cache: PsbtCache): {
+    pubkey: Buffer;
+    hash: Buffer;
+    leafHash?: Buffer;
+}[];
+export declare function getTaprootHashesForSigCustom(inputIndex: number, input: PsbtInput, inputs: PsbtInput[], pubkey: Buffer, cache: PsbtCache, tapLeafHashToSign?: Buffer, allowedSighashTypes?: number[]): {
+    pubkey: Buffer;
+    hash: Buffer;
+    leafHash?: Buffer;
+}[];
+export declare function getTaprootHashesForSig(inputIndex: number, input: PsbtInput, inputs: PsbtInput[], pubkey: Buffer, cache: PsbtCache, tapLeafHashToSign?: Buffer, allowedSighashTypes?: number[]): {
+    pubkey: Buffer;
+    hash: Buffer;
+    leafHash?: Buffer;
+}[];
 type AllScriptType = 'witnesspubkeyhash' | 'pubkeyhash' | 'multisig' | 'pubkey' | 'nonstandard' | 'p2sh-witnesspubkeyhash' | 'p2sh-pubkeyhash' | 'p2sh-multisig' | 'p2sh-pubkey' | 'p2sh-nonstandard' | 'p2wsh-pubkeyhash' | 'p2wsh-multisig' | 'p2wsh-pubkey' | 'p2wsh-nonstandard' | 'p2sh-p2wsh-pubkeyhash' | 'p2sh-p2wsh-multisig' | 'p2sh-p2wsh-pubkey' | 'p2sh-p2wsh-nonstandard';
 export {};

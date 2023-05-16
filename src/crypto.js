@@ -1,4 +1,9 @@
 'use strict';
+var __importDefault =
+  (this && this.__importDefault) ||
+  function (mod) {
+    return mod && mod.__esModule ? mod : { default: mod };
+  };
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.taggedHash =
   exports.TAGGED_HASH_PREFIXES =
@@ -9,26 +14,26 @@ exports.taggedHash =
   exports.sha1 =
   exports.ripemd160 =
     void 0;
-const createHash = require('create-hash');
-const RipeMd160 = require('ripemd160');
+const create_hash_1 = __importDefault(require('create-hash'));
+const ripemd160_1 = __importDefault(require('ripemd160'));
 function ripemd160(buffer) {
   try {
-    return createHash('rmd160').update(buffer).digest();
+    return (0, create_hash_1.default)('rmd160').update(buffer).digest();
   } catch (err) {
     try {
-      return createHash('ripemd160').update(buffer).digest();
+      return (0, create_hash_1.default)('ripemd160').update(buffer).digest();
     } catch (err2) {
-      return new RipeMd160().update(buffer).digest();
+      return new ripemd160_1.default().update(buffer).digest();
     }
   }
 }
 exports.ripemd160 = ripemd160;
 function sha1(buffer) {
-  return createHash('sha1').update(buffer).digest();
+  return (0, create_hash_1.default)('sha1').update(buffer).digest();
 }
 exports.sha1 = sha1;
 function sha256(buffer) {
-  return createHash('sha256').update(buffer).digest();
+  return (0, create_hash_1.default)('sha256').update(buffer).digest();
 }
 exports.sha256 = sha256;
 function hash160(buffer) {

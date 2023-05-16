@@ -1,16 +1,9 @@
 {
   "name": "@jafri/bitcoinjs-lib",
-  "version": "6.1.18",
+  "version": "6.1.20",
   "description": "Client-side Bitcoin JavaScript library",
-  "module": "dist/index.mjs",
-  "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist"
-  ],
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
   "engines": {
     "node": ">=8.0.0"
   },
@@ -23,8 +16,7 @@
   ],
   "scripts": {
     "audit": "better-npm-audit audit -l high",
-    "build": "tsup ts_src/index.ts --format cjs,esm --dts",
-    "build:old": "npm run clean && tsc -p ./tsconfig.json && npm run formatjs",
+    "build": "npm run clean && tsc -p ./tsconfig.json && npm run formatjs",
     "build:tests": "npm run clean:jstests && tsc -p ./test/tsconfig.json",
     "clean": "rimraf src",
     "clean:jstests": "rimraf 'test/**/!(ts-node-register)*.js'",
@@ -54,6 +46,9 @@
     "type": "git",
     "url": "https://github.com/bitcoinjs/bitcoinjs-lib.git"
   },
+  "files": [
+    "src"
+  ],
   "dependencies": {
     "bech32": "^2.0.0",
     "bip174": "^2.1.0",
@@ -98,7 +93,6 @@
     "rimraf": "^2.6.3",
     "tiny-secp256k1": "^2.2.0",
     "ts-node": "^8.3.0",
-    "tsup": "^6.7.0",
     "typescript": "^4.4.4"
   },
   "license": "MIT"

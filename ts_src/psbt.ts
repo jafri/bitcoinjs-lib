@@ -338,7 +338,10 @@ export class Psbt {
     return this;
   }
 
-  extractTransaction(disableFeeCheck?: boolean): Transaction {
+  extractTransaction(
+    disableFeeCheck?: boolean,
+    disableOutputsMoreThanInputs?: boolean,
+  ): Transaction {
     if (!this.data.inputs.every(isFinalized)) throw new Error('Not finalized');
     const c = this.__CACHE;
     if (!disableFeeCheck) {
@@ -346,7 +349,13 @@ export class Psbt {
     }
     if (c.__EXTRACTED_TX) return c.__EXTRACTED_TX;
     const tx = c.__TX.clone();
-    inputFinalizeGetAmts(this.data.inputs, tx, c, true);
+    inputFinalizeGetAmts(
+      this.data.inputs,
+      tx,
+      c,
+      true,
+      disableOutputsMoreThanInputs,
+    );
     return tx;
   }
 
@@ -1149,7 +1158,7 @@ interface PsbtInputExtended extends PsbtInput, TransactionInput {}
 
 type PsbtOutputExtended = PsbtOutputExtendedAddress | PsbtOutputExtendedScript;
 
-interface PsbtOutputExtendedAddress extends PsbtOutput {
+export interface PsbtOutputExtendedAddress extends PsbtOutput {
   address: string;
   value: number;
 }
@@ -1690,7 +1699,7 @@ function getHashForSig(
   };
 }
 
-function getAllTaprootHashesForSig(
+export function getAllTaprootHashesForSig(
   inputIndex: number,
   input: PsbtInput,
   inputs: PsbtInput[],
@@ -1714,7 +1723,80 @@ function getAllTaprootHashesForSig(
   return allHashes.flat();
 }
 
-function getTaprootHashesForSig(
+export function getTaprootHashesForSigCustom(
+  inputIndex: number,
+  input: PsbtInput,
+  inputs: PsbtInput[],
+  pubkey: Buffer,
+  cache: PsbtCache,
+  tapLeafHashToSign?: Buffer,
+  allowedSighashTypes?: number[],
+): { pubkey: Buffer; hash: Buffer; leafHash?: Buffer }[] {
+  const unsignedTx = cache.__TX;
+
+  const sighashType = input.sighashType || Transaction.SIGHASH_DEFAULT;
+  checkSighashTypeAllowed(sighashType, allowedSighashTypes);
+
+  const prevOuts: Output[] = inputs.map((i, index) =>
+    getScriptAndAmountFromUtxo(index, i, cache),
+  );
+  const signingScripts = prevOuts.map(o => o.script);
+  const values = prevOuts.map(o => o.value);
+
+  const hashes = [];
+  const tapKeyHash = unsignedTx.hashForWitnessV1(
+    inputIndex,
+    signingScripts,
+    values,
+    sighashType,
+  );
+  hashes.push({ pubkey, hash: tapKeyHash });
+
+  if (input.tapInternalKey && !tapLeafHashToSign) {
+    const outputKey = tweakInternalPubKey(inputIndex, input);
+    if (toXOnly(pubkey).equals(outputKey)) {
+      const tapKeyHash = unsignedTx.hashForWitnessV1(
+        inputIndex,
+        signingScripts,
+        values,
+        sighashType,
+      );
+      hashes.push({ pubkey, hash: tapKeyHash });
+    }
+  }
+
+  const tapLeafHashes = (input.tapLeafScript || [])
+    .filter(tapLeaf => pubkeyInScript(pubkey, tapLeaf.script))
+    .map(tapLeaf => {
+      const hash = tapleafHash({
+        output: tapLeaf.script,
+        version: tapLeaf.leafVersion,
+      });
+      return Object.assign({ hash }, tapLeaf);
+    })
+    .filter(
+      tapLeaf => !tapLeafHashToSign || tapLeafHashToSign.equals(tapLeaf.hash),
+    )
+    .map(tapLeaf => {
+      const tapScriptHash = unsignedTx.hashForWitnessV1(
+        inputIndex,
+        signingScripts,
+        values,
+        Transaction.SIGHASH_DEFAULT,
+        tapLeaf.hash,
+      );
+
+      return {
+        pubkey,
+        hash: tapScriptHash,
+        leafHash: tapLeaf.hash,
+      };
+    });
+
+  return hashes.concat(tapLeafHashes);
+}
+
+export function getTaprootHashesForSig(
   inputIndex: number,
   input: PsbtInput,
   inputs: PsbtInput[],
@@ -2008,6 +2090,7 @@ function inputFinalizeGetAmts(
   tx: Transaction,
   cache: PsbtCache,
   mustFinalize: boolean,
+  disableOutputsMoreThanInputs?: boolean,
 ): void {
   let inputAmount = 0;
   inputs.forEach((input, idx) => {
@@ -2032,7 +2115,7 @@ function inputFinalizeGetAmts(
     0,
   );
   const fee = inputAmount - outputAmount;
-  if (fee < 0) {
+  if (fee < 0 && !disableOutputsMoreThanInputs) {
     throw new Error('Outputs are spending more than Inputs');
   }
   const bytes = tx.virtualSize();

@@ -1,5 +1,5 @@
-import * as createHash from 'create-hash';
-import * as RipeMd160 from 'ripemd160';
+import createHash from 'create-hash';
+import RipeMd160 from 'ripemd160';
 
 export function ripemd160(buffer: Buffer): Buffer {
   try {
@@ -40,7 +40,7 @@ export const TAGS = [
   'KeyAgg list',
   'KeyAgg coefficient',
 ] as const;
-export type TaggedHashPrefix = typeof TAGS[number];
+export type TaggedHashPrefix = (typeof TAGS)[number];
 type TaggedHashPrefixes = {
   [key in TaggedHashPrefix]: Buffer;
 };

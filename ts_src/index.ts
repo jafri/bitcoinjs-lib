@@ -16,7 +16,12 @@ export {
   SignerAsync,
   HDSigner,
   HDSignerAsync,
+  PsbtOutputExtendedAddress,
+  getAllTaprootHashesForSig,
+  getTaprootHashesForSigCustom
 } from './psbt';
+export { witnessStackToScriptWitness } from './psbt/psbtutils';
+export { tapTreeToList } from './psbt/bip371';
 export { OPS as opcodes } from './ops';
 export { Transaction } from './transaction';
 
