@@ -1,7 +1,8 @@
 {
   "name": "@jafri/bitcoinjs-lib",
-  "version": "6.1.17",
+  "version": "6.1.18",
   "description": "Client-side Bitcoin JavaScript library",
+  "module": "dist/index.mjs",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "publishConfig": {
@@ -22,7 +23,7 @@
   ],
   "scripts": {
     "audit": "better-npm-audit audit -l high",
-    "build": "tsup ts_src/index.ts --format cjs --dts",
+    "build": "tsup ts_src/index.ts --format cjs,esm --dts",
     "build:old": "npm run clean && tsc -p ./tsconfig.json && npm run formatjs",
     "build:tests": "npm run clean:jstests && tsc -p ./test/tsconfig.json",
     "clean": "rimraf src",
