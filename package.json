@@ -1,6 +1,6 @@
 {
   "name": "@jafri/bitcoinjs-lib",
-  "version": "6.1.16",
+  "version": "6.1.17",
   "description": "Client-side Bitcoin JavaScript library",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
