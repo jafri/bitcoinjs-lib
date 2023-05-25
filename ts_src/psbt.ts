@@ -1156,14 +1156,16 @@ interface PsbtOpts {
 
 interface PsbtInputExtended extends PsbtInput, TransactionInput {}
 
-type PsbtOutputExtended = PsbtOutputExtendedAddress | PsbtOutputExtendedScript;
+export type PsbtOutputExtended =
+  | PsbtOutputExtendedAddress
+  | PsbtOutputExtendedScript;
 
 export interface PsbtOutputExtendedAddress extends PsbtOutput {
   address: string;
   value: number;
 }
 
-interface PsbtOutputExtendedScript extends PsbtOutput {
+export interface PsbtOutputExtendedScript extends PsbtOutput {
   script: Buffer;
   value: number;
 }
