@@ -1,48 +1,4 @@
 'use strict';
-var __createBinding =
-  (this && this.__createBinding) ||
-  (Object.create
-    ? function (o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        var desc = Object.getOwnPropertyDescriptor(m, k);
-        if (
-          !desc ||
-          ('get' in desc ? !m.__esModule : desc.writable || desc.configurable)
-        ) {
-          desc = {
-            enumerable: true,
-            get: function () {
-              return m[k];
-            },
-          };
-        }
-        Object.defineProperty(o, k2, desc);
-      }
-    : function (o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
-      });
-var __setModuleDefault =
-  (this && this.__setModuleDefault) ||
-  (Object.create
-    ? function (o, v) {
-        Object.defineProperty(o, 'default', { enumerable: true, value: v });
-      }
-    : function (o, v) {
-        o['default'] = v;
-      });
-var __importStar =
-  (this && this.__importStar) ||
-  function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null)
-      for (var k in mod)
-        if (k !== 'default' && Object.prototype.hasOwnProperty.call(mod, k))
-          __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-  };
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.getTaprootHashesForSig =
   exports.getTaprootHashesForSigCustom =
@@ -50,14 +6,14 @@ exports.getTaprootHashesForSig =
   exports.Psbt =
     void 0;
 const bip174_1 = require('bip174');
-const varuint = __importStar(require('bip174/src/lib/converter/varint'));
+const varuint = require('bip174/src/lib/converter/varint');
 const utils_1 = require('bip174/src/lib/utils');
 const address_1 = require('./address');
 const bufferutils_1 = require('./bufferutils');
 const networks_1 = require('./networks');
-const payments = __importStar(require('./payments'));
+const payments = require('./payments');
 const bip341_1 = require('./payments/bip341');
-const bscript = __importStar(require('./script'));
+const bscript = require('./script');
 const transaction_1 = require('./transaction');
 const bip371_1 = require('./psbt/bip371');
 const psbtutils_1 = require('./psbt/psbtutils');

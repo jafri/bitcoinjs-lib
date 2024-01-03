@@ -1,5 +1,5 @@
-import createHash from 'create-hash';
-import RipeMd160 from 'ripemd160';
+import * as createHash from 'create-hash';
+import * as RipeMd160 from 'ripemd160';
 
 export function ripemd160(buffer: Buffer): Buffer {
   try {

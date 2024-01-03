@@ -1,9 +1,4 @@
 'use strict';
-var __importDefault =
-  (this && this.__importDefault) ||
-  function (mod) {
-    return mod && mod.__esModule ? mod : { default: mod };
-  };
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.oneOf =
   exports.Null =
@@ -35,8 +30,7 @@ exports.oneOf =
   exports.typeforce =
     void 0;
 const buffer_1 = require('buffer');
-const typeforce_1 = __importDefault(require('typeforce'));
-exports.typeforce = typeforce_1.default;
+exports.typeforce = require('typeforce');
 const ZERO32 = buffer_1.Buffer.alloc(32, 0);
 const EC_P = buffer_1.Buffer.from(
   'fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f',

@@ -10,7 +10,7 @@
     ],
     "allowJs": false,
     "strict": true,
-    "esModuleInterop": true,
+    "esModuleInterop": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },

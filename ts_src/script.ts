@@ -34,8 +34,8 @@ export function countNonPushOnlyOPs(value: Stack): number {
 function asMinimalOP(buffer: Buffer): number | void {
   if (buffer.length === 0) return OPS.OP_0;
   if (buffer.length !== 1) return;
-  // TODO
-  if (buffer[0] > 1 && buffer[0] <= 16) return OP_INT_BASE + buffer[0];
+  // TODO: KEEP IN MIND IF YOU INCREASE FROM 9, it becomes problematic as it turns to hex
+  if (buffer[0] > 9 && buffer[0] <= 16) return OP_INT_BASE + buffer[0];
   if (buffer[0] === 0x81) return OPS.OP_1NEGATE;
 }
 
