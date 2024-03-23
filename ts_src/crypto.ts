@@ -1,32 +1,31 @@
-import * as createHash from 'create-hash';
-import * as RipeMd160 from 'ripemd160';
+/**
+ * A module for hashing functions.
+ * include ripemd160、sha1、sha256、hash160、hash256、taggedHash
+ *
+ * @packageDocumentation
+ */
+import { ripemd160 as _ripemd160 } from '@noble/hashes/ripemd160';
+import { sha1 as _sha1 } from '@noble/hashes/sha1';
+import { sha256 as _sha256 } from '@noble/hashes/sha256';
 
 export function ripemd160(buffer: Buffer): Buffer {
-  try {
-    return createHash('rmd160').update(buffer).digest();
-  } catch (err) {
-    try {
-      return createHash('ripemd160').update(buffer).digest();
-    } catch (err2) {
-      return new RipeMd160().update(buffer).digest();
-    }
-  }
+  return Buffer.from(_ripemd160(Uint8Array.from(buffer)));
 }
 
 export function sha1(buffer: Buffer): Buffer {
-  return createHash('sha1').update(buffer).digest();
+  return Buffer.from(_sha1(Uint8Array.from(buffer)));
 }
 
 export function sha256(buffer: Buffer): Buffer {
-  return createHash('sha256').update(buffer).digest();
+  return Buffer.from(_sha256(Uint8Array.from(buffer)));
 }
 
 export function hash160(buffer: Buffer): Buffer {
-  return ripemd160(sha256(buffer));
+  return Buffer.from(_ripemd160(_sha256(Uint8Array.from(buffer))));
 }
 
 export function hash256(buffer: Buffer): Buffer {
-  return sha256(sha256(buffer));
+  return Buffer.from(_sha256(_sha256(Uint8Array.from(buffer))));
 }
 
 export const TAGS = [
@@ -40,11 +39,14 @@ export const TAGS = [
   'KeyAgg list',
   'KeyAgg coefficient',
 ] as const;
-export type TaggedHashPrefix = (typeof TAGS)[number];
+export type TaggedHashPrefix = typeof TAGS[number];
 type TaggedHashPrefixes = {
   [key in TaggedHashPrefix]: Buffer;
 };
 /** An object mapping tags to their tagged hash prefix of [SHA256(tag) | SHA256(tag)] */
+/**
+ * Defines the tagged hash prefixes used in the crypto module.
+ */
 export const TAGGED_HASH_PREFIXES: TaggedHashPrefixes = {
   'BIP0340/challenge': Buffer.from([
     123, 181, 45, 122, 159, 239, 88, 50, 62, 177, 191, 122, 64, 125, 179, 130,

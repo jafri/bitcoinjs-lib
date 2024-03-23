@@ -1,22 +1,20 @@
 import * as assert from 'assert';
 import BIP32Factory from 'bip32';
 import * as bip39 from 'bip39';
-import ECPairFactory from 'ecpair';
 import * as ecc from 'tiny-secp256k1';
 import { describe, it } from 'mocha';
-import { PsbtInput, TapLeafScript } from 'bip174/src/lib/interfaces';
+import { PsbtInput, TapLeaf, TapLeafScript } from 'bip174/src/lib/interfaces';
 import { regtestUtils } from './_regtest';
 import * as bitcoin from '../..';
 import { Taptree } from '../../src/types';
+import { LEAF_VERSION_TAPSCRIPT } from '../../src/payments/bip341';
 import { toXOnly, tapTreeToList, tapTreeFromList } from '../../src/psbt/bip371';
 import { witnessStackToScriptWitness } from '../../src/psbt/psbtutils';
-import { TapLeaf } from 'bip174/src/lib/interfaces';
 
 const rng = require('randombytes');
 const regtest = regtestUtils.network;
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
-const ECPair = ECPairFactory(ecc);
 
 describe('bitcoinjs-lib (transaction with taproot)', () => {
   it('can verify the BIP86 HD wallet vectors for taproot single sig (& sending example)', async () => {
@@ -39,7 +37,7 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     assert.strictEqual(rootKey.toBase58(), xprv);
     const childNode = rootKey.derivePath(path);
     // Since internalKey is an xOnly pubkey, we drop the DER header byte
-    const childNodeXOnlyPubkey = childNode.publicKey.slice(1, 33);
+    const childNodeXOnlyPubkey = toXOnly(childNode.publicKey);
     assert.deepEqual(childNodeXOnlyPubkey, internalPubkey);
 
     // This is new for taproot
@@ -139,7 +137,9 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
       tapInternalKey: sendPubKey,
     });
 
-    const tweakedSigner = tweakSigner(internalKey!, { network: regtest });
+    const tweakedSigner = internalKey.tweak(
+      bitcoin.crypto.taggedHash('TapTweak', toXOnly(internalKey.publicKey)),
+    );
     await psbt.signInputAsync(0, tweakedSigner);
     await psbt.signInputAsync(1, p2pkhKey);
 
@@ -194,10 +194,12 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     });
     psbt.addOutput({ value: sendAmount, address: address! });
 
-    const tweakedSigner = tweakSigner(internalKey!, {
-      tweakHash: hash,
-      network: regtest,
-    });
+    const tweakedSigner = internalKey.tweak(
+      bitcoin.crypto.taggedHash(
+        'TapTweak',
+        Buffer.concat([toXOnly(internalKey.publicKey), hash!]),
+      ),
+    );
     psbt.signInput(0, tweakedSigner);
 
     psbt.finalizeAllInputs();
@@ -219,15 +221,21 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     const internalKey = bip32.fromSeed(rng(64), regtest);
     const leafKey = bip32.fromSeed(rng(64), regtest);
 
-    const leafScriptAsm = `${toXOnly(leafKey.publicKey).toString('hex')} OP_CHECKSIG OP_FALSE OP_IF ${Buffer.from('ord', 'ascii').toString('hex')} OP_1 ${Buffer.from('text/plain;charset=utf-8', 'ascii').toString('hex')} OP_0 ${Buffer.from('whateva', 'ascii').toString('hex')} OP_ENDIF`;
+    const leafScriptAsm = `${toXOnly(leafKey.publicKey).toString(
+      'hex',
+    )} OP_CHECKSIG OP_FALSE OP_IF ${Buffer.from('ord', 'ascii').toString(
+      'hex',
+    )} OP_1 ${Buffer.from('text/plain;charset=utf-8', 'ascii').toString(
+      'hex',
+    )} OP_0 ${Buffer.from('whateva', 'ascii').toString('hex')} OP_ENDIF`;
     const leafScript = bitcoin.script.fromASM(leafScriptAsm);
 
     const scriptTree: Taptree = {
       output: leafScript,
-    }
+    };
     const redeem = {
       output: leafScript,
-      redeemVersion: 192,
+      redeemVersion: LEAF_VERSION_TAPSCRIPT,
     };
 
     const { output, witness } = bitcoin.payments.p2tr({
@@ -317,7 +325,7 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     ];
     const redeem = {
       output: leafScript,
-      redeemVersion: 192,
+      redeemVersion: LEAF_VERSION_TAPSCRIPT,
     };
 
     const { output, witness } = bitcoin.payments.p2tr({
@@ -428,7 +436,7 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     ];
     const redeem = {
       output: leafScript,
-      redeemVersion: 192,
+      redeemVersion: LEAF_VERSION_TAPSCRIPT,
     };
 
     const { output, address, witness } = bitcoin.payments.p2tr({
@@ -488,7 +496,7 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
       (_, index) =>
         ({
           depth: 3,
-          leafVersion: 192,
+          leafVersion: LEAF_VERSION_TAPSCRIPT,
           script: bitcoin.script.fromASM(`OP_ADD OP_${index * 2} OP_EQUAL`),
         } as TapLeaf),
     );
@@ -497,7 +505,7 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
     for (let leafIndex = 1; leafIndex < leafCount; leafIndex++) {
       const redeem = {
         output: bitcoin.script.fromASM(`OP_ADD OP_${leafIndex * 2} OP_EQUAL`),
-        redeemVersion: 192,
+        redeemVersion: LEAF_VERSION_TAPSCRIPT,
       };
 
       const internalKey = bip32.fromSeed(rng(64), regtest);
@@ -554,6 +562,66 @@ describe('bitcoinjs-lib (transaction with taproot)', () => {
       });
     }
   });
+
+  it('should fail validating invalid signatures for taproot (See issue #1931)', () => {
+    const schnorrValidator = (
+      pubkey: Buffer,
+      msghash: Buffer,
+      signature: Buffer,
+    ) => {
+      return ecc.verifySchnorr(msghash, pubkey, signature);
+    };
+
+    const psbtBase64 =
+      `cHNidP8BAFICAAAAAe1h73A6zedruNERV6JU7Ty1IlYZh2KO1cBklZqCMEy8AAAAAAD/////ARA
+      nAAAAAAAAFgAUS0GlfqWSeEWIpwPwrvRIjBbJQroAAAAAAAEA/TgBAQAAAAABAnGJ6st1FIvYLEV
+      bJMQaZ3HSOJnkw5C+ViCuJYiFEYosAAAAAAD9////xuZd0xArNSaBuElLX3nzjwtZW95O7L/wbz9
+      4v+v0vuYAAAAAAP3///8CECcAAAAAAAAiUSAVbMSHgwYVdyBgfNy0syr6TMaFOGhFjXJYuQcRLlp
+      DS8hgBwAAAAAAIlEgthWGz3o2R7WpgjIK52ODoEaA/0HcImSUjVk6agZgghwBQIP9WWErMfeBBYy
+      uHuSZS7MdXVICtlFgNveDrvuXeQGSZl1gGG6/r3Aw7h9TifGtoA+7JwYBjLMcEG6hbeyQGXIBQNS
+      qKH1p/NFzO9bxe9vpvBZQIaX5Qa9SY2NfNCgSRNabmX5EiaihWcLC+ALgchm7DUfYrAmi1r4uSI/
+      YaQ1lq8gAAAAAAQErECcAAAAAAAAiUSAVbMSHgwYVdyBgfNy0syr6TMaFOGhFjXJYuQcRLlpDSwE
+      DBIMAAAABCEMBQZUpv6e1Hwfpi/PpglkkK/Rx40vZIIHwtJ7dXWFZ5TcZUEelCnfKOAWZ4xWjauY
+      M2y+JcgFcVsuPzPuiM+z5AH+DARNBlSm/p7UfB+mL8+mCWSQr9HHjS9kggfC0nt1dYVnlNxlQR6U
+      Kd8o4BZnjFaNq5gzbL4lyAVxWy4/M+6Iz7PkAf4MBFyC6ZCT2zZVrEbkw/T1fyS8eLKQaP2MH6rz
+      dlMauGvQzLQAA`.replace(/\s+/g, '');
+
+    const psbt = bitcoin.Psbt.fromBase64(psbtBase64);
+
+    assert(
+      !psbt.validateSignaturesOfAllInputs(schnorrValidator),
+      'Should fail validation',
+    );
+  });
+
+  it('should succeed validating valid signatures for taproot (See issue #1934)', () => {
+    const schnorrValidator = (
+      pubkey: Buffer,
+      msghash: Buffer,
+      signature: Buffer,
+    ) => {
+      return ecc.verifySchnorr(msghash, pubkey, signature);
+    };
+
+    const psbtBase64 =
+      `cHNidP8BAF4CAAAAAU6UzYPa7tES0HoS+obnRJuXX41Ob64Zs59qDEyKsu1ZAAAAAAD/////AYA
+      zAjsAAAAAIlEgIlIzfR+flIWYTyewD9v+1N84IubZ/7qg6oHlYLzv1aYAAAAAAAEAXgEAAAAB8f+
+      afEJBun7sRQLFE1Olc/gK9LBaduUpz3vB4fjXVF0AAAAAAP3///8BECcAAAAAAAAiUSAiUjN9H5+
+      UhZhPJ7AP2/7U3zgi5tn/uqDqgeVgvO/VpgAAAAABASsQJwAAAAAAACJRICJSM30fn5SFmE8nsA/
+      b/tTfOCLm2f+6oOqB5WC879WmAQMEgwAAAAETQWQwNOao3RMOBWPuAQ9Iph7Qzk47MvroTHbJR49
+      MxKJmQ6hfhZa5wVVrdKYea5BW/loqa7al2pYYZMlGvdS06wODARcgjuYXxIpyOMVTYEvl35gDidC
+      m/vUICZyuNNZKaPz9dxAAAQUgjuYXxIpyOMVTYEvl35gDidCm/vUICZyuNNZKaPz9dxAA`.replace(
+        /\s+/g,
+        '',
+      );
+
+    const psbt = bitcoin.Psbt.fromBase64(psbtBase64);
+
+    assert(
+      psbt.validateSignaturesOfAllInputs(schnorrValidator),
+      'Should succeed validation',
+    );
+  });
 });
 
 function buildLeafIndexFinalizer(
@@ -586,36 +654,4 @@ function buildLeafIndexFinalizer(
       throw new Error(`Can not finalize taproot input #${inputIndex}: ${err}`);
     }
   };
-}
-
-// This logic will be extracted to ecpair
-function tweakSigner(signer: bitcoin.Signer, opts: any = {}): bitcoin.Signer {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  let privateKey: Uint8Array | undefined = signer.privateKey!;
-  if (!privateKey) {
-    throw new Error('Private key is required for tweaking signer!');
-  }
-  if (signer.publicKey[0] === 3) {
-    privateKey = ecc.privateNegate(privateKey);
-  }
-
-  const tweakedPrivateKey = ecc.privateAdd(
-    privateKey,
-    tapTweakHash(toXOnly(signer.publicKey), opts.tweakHash),
-  );
-  if (!tweakedPrivateKey) {
-    throw new Error('Invalid tweaked private key!');
-  }
-
-  return ECPair.fromPrivateKey(Buffer.from(tweakedPrivateKey), {
-    network: opts.network,
-  });
-}
-
-function tapTweakHash(pubKey: Buffer, h: Buffer | undefined): Buffer {
-  return bitcoin.crypto.taggedHash(
-    'TapTweak',
-    Buffer.concat(h ? [pubKey, h] : [pubKey]),
-  );
 }

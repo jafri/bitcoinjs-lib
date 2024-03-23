@@ -5,13 +5,16 @@ import * as payments from './payments';
 import * as script from './script';
 export { address, crypto, networks, payments, script };
 export { Block } from './block';
+/** @hidden */
 export { TaggedHashPrefix } from './crypto';
-export { Psbt, PsbtTxInput, PsbtTxOutput, Signer, SignerAsync, HDSigner, HDSignerAsync, PsbtOutputExtendedAddress, getAllTaprootHashesForSig, getTaprootHashesForSigCustom } from './psbt';
+export { Psbt, PsbtTxInput, PsbtTxOutput, Signer, SignerAsync, HDSigner, HDSignerAsync, PsbtOutputExtendedAddress, PsbtOutputExtended, getAllTaprootHashesForSig, } from './psbt';
 export { witnessStackToScriptWitness } from './psbt/psbtutils';
 export { tapTreeToList } from './psbt/bip371';
 export { OPS as opcodes } from './ops';
 export { Transaction } from './transaction';
+/** @hidden */
 export { Network } from './networks';
+/** @hidden */
 export { Payment, PaymentCreator, PaymentOpts, Stack, StackElement, } from './payments';
 export { Input as TxInput, Output as TxOutput } from './transaction';
 export { initEccLib } from './ecc_lib';

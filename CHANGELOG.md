@@ -1,3 +1,22 @@
+<<<<<<< HEAD
+=======
+# 6.1.5
+__fixed__
+- Updated bip174 dependency to fix issue with unknownKeyVals. (#1979)
+
+# 6.1.4
+__changed__
+- Changed internal usage of the Buffer API to match with newer broken bundlers that don't follow spec. The new usage is still compatible with older versions of Buffer, so there shouldn't be any breakage. The public API interface was not changed. (#1975)
+
+# 6.1.3
+__fixed__
+- validateSignaturesOfInput for taproot inputs returned false for valid signatures in specific cases. (#1934)
+
+# 6.1.2
+__fixed__
+- validateSignaturesOfInput for taproot inputs returned true for invalid signatures in specific cases. (#1932)
+
+>>>>>>> da6e2fb00dc3ba6404c0669bb7c8208f8805ff01
 # 6.1.1
 __added__
 - add example using BIP86 vector to verify the sending to and from a BIP86 generated taproot address
@@ -315,8 +334,8 @@ Ideally you shoud not have to directly access `HDNode` internals for general usa
 
 __added__
 - `ECPair.prototype.getNetwork`
-- `HDNode.prototype.getNetwork`, wraps the underyling keyPair's `getNetwork` method
-- `HDNode.prototype.getPublicKeyBuffer`, wraps the underyling keyPair's `getPublicKeyBuffer` method
+- `HDNode.prototype.getNetwork`, wraps the underlying keyPair's `getNetwork` method
+- `HDNode.prototype.getPublicKeyBuffer`, wraps the underlying keyPair's `getPublicKeyBuffer` method
 - `HDNode.prototype.sign`, wraps the underlying keyPair's `sign` method
 - `HDNode.prototype.verify`, wraps the underlying keyPair's `verify` method
 

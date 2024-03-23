@@ -5,7 +5,6 @@ exports.initEccLib =
   exports.opcodes =
   exports.tapTreeToList =
   exports.witnessStackToScriptWitness =
-  exports.getTaprootHashesForSigCustom =
   exports.getAllTaprootHashesForSig =
   exports.Psbt =
   exports.Block =
@@ -43,12 +42,6 @@ Object.defineProperty(exports, 'getAllTaprootHashesForSig', {
   enumerable: true,
   get: function () {
     return psbt_1.getAllTaprootHashesForSig;
-  },
-});
-Object.defineProperty(exports, 'getTaprootHashesForSigCustom', {
-  enumerable: true,
-  get: function () {
-    return psbt_1.getTaprootHashesForSigCustom;
   },
 });
 var psbtutils_1 = require('./psbt/psbtutils');

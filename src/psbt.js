@@ -1,7 +1,6 @@
 'use strict';
 Object.defineProperty(exports, '__esModule', { value: true });
 exports.getTaprootHashesForSig =
-  exports.getTaprootHashesForSigCustom =
   exports.getAllTaprootHashesForSig =
   exports.Psbt =
     void 0;
@@ -38,6 +37,7 @@ const DEFAULT_OPTS = {
  * There are 6 roles that this class fulfills. (Explained in BIP174)
  *
  * Creator: This can be done with `new Psbt()`
+ *
  * Updater: This can be done with `psbt.addInput(input)`, `psbt.addInputs(inputs)`,
  *   `psbt.addOutput(output)`, `psbt.addOutputs(outputs)` when you are looking to
  *   add new inputs and outputs to the PSBT, and `psbt.updateGlobal(itemObject)`,
@@ -48,20 +48,24 @@ const DEFAULT_OPTS = {
  *   data for updateOutput.
  *   For a list of what attributes should be what types. Check the bip174 library.
  *   Also, check the integration tests for some examples of usage.
+ *
  * Signer: There are a few methods. signAllInputs and signAllInputsAsync, which will search all input
  *   information for your pubkey or pubkeyhash, and only sign inputs where it finds
  *   your info. Or you can explicitly sign a specific input with signInput and
  *   signInputAsync. For the async methods you can create a SignerAsync object
  *   and use something like a hardware wallet to sign with. (You must implement this)
+ *
  * Combiner: psbts can be combined easily with `psbt.combine(psbt2, psbt3, psbt4 ...)`
  *   the psbt calling combine will always have precedence when a conflict occurs.
  *   Combine checks if the internal bitcoin transaction is the same, so be sure that
  *   all sequences, version, locktime, etc. are the same before combining.
+ *
  * Input Finalizer: This role is fairly important. Not only does it need to construct
  *   the input scriptSigs and witnesses, but it SHOULD verify the signatures etc.
  *   Before running `psbt.finalizeAllInputs()` please run `psbt.validateSignaturesOfAllInputs()`
  *   Running any finalize method will delete any data in the input(s) that are no longer
  *   needed due to the finalized scripts containing the information.
+ *
  * Transaction Extractor: This role will perform some checks before returning a
  *   Transaction object. Such as fee rate not being larger than maximumFeeRate etc.
  */
@@ -89,7 +93,7 @@ class Psbt {
       __NON_WITNESS_UTXO_BUF_CACHE: [],
       __TX_IN_CACHE: {},
       __TX: this.data.globalMap.unsignedTx.tx,
-      // Psbt's predecesor (TransactionBuilder - now removed) behavior
+      // Psbt's predecessor (TransactionBuilder - now removed) behavior
       // was to not confirm input values  before signing.
       // Even though we highly encourage people to get
       // the full parent transaction to verify values, the ability to
@@ -478,14 +482,16 @@ class Psbt {
           this.__CACHE,
         );
     if (!allHashses.length) throw new Error('No signatures for this pubkey');
-    const tapKeyHash = allHashses.find(h => !!h.leafHash);
+    const tapKeyHash = allHashses.find(h => !h.leafHash);
+    let validationResultCount = 0;
     if (tapKeySig && tapKeyHash) {
       const isValidTapkeySig = validator(
         tapKeyHash.pubkey,
         tapKeyHash.hash,
-        tapKeySig,
+        trimTaprootSig(tapKeySig),
       );
       if (!isValidTapkeySig) return false;
+      validationResultCount++;
     }
     if (tapScriptSig) {
       for (const tapSig of tapScriptSig) {
@@ -494,13 +500,14 @@ class Psbt {
           const isValidTapScriptSig = validator(
             tapSig.pubkey,
             tapSigHash.hash,
-            tapSig.signature,
+            trimTaprootSig(tapSig.signature),
           );
           if (!isValidTapScriptSig) return false;
+          validationResultCount++;
         }
       }
     }
-    return true;
+    return validationResultCount > 0;
   }
   signAllInputsHD(
     hdKeyPair,
@@ -1269,7 +1276,7 @@ function getHashForSig(inputIndex, input, cache, forValidate, sighashTypes) {
       console.warn(
         'Warning: Signing non-segwit inputs without the full parent transaction ' +
           'means there is a chance that a miner could feed you incorrect information ' +
-          "to trick you into paying large fees. This behavior is the same as Psbt's predecesor " +
+          "to trick you into paying large fees. This behavior is the same as Psbt's predecessor " +
           '(TransactionBuilder - now removed) when signing non-segwit scripts. You are not ' +
           'able to export this Psbt with toBuffer|toBase64|toHex since it is not ' +
           'BIP174 compliant.\n*********************\nPROCEED WITH CAUTION!\n' +
@@ -1290,8 +1297,10 @@ function getHashForSig(inputIndex, input, cache, forValidate, sighashTypes) {
 function getAllTaprootHashesForSig(inputIndex, input, inputs, cache) {
   const allPublicKeys = [];
   if (input.tapInternalKey) {
-    const outputKey = (0, bip371_1.tweakInternalPubKey)(inputIndex, input);
-    allPublicKeys.push(outputKey);
+    const key = getPrevoutTaprootKey(inputIndex, input, cache);
+    if (key) {
+      allPublicKeys.push(key);
+    }
   }
   if (input.tapScriptSig) {
     const tapScriptPubkeys = input.tapScriptSig.map(tss => tss.pubkey);
@@ -1303,73 +1312,13 @@ function getAllTaprootHashesForSig(inputIndex, input, inputs, cache) {
   return allHashes.flat();
 }
 exports.getAllTaprootHashesForSig = getAllTaprootHashesForSig;
-function getTaprootHashesForSigCustom(
-  inputIndex,
-  input,
-  inputs,
-  pubkey,
-  cache,
-  tapLeafHashToSign,
-  allowedSighashTypes,
-) {
-  const unsignedTx = cache.__TX;
-  const sighashType =
-    input.sighashType || transaction_1.Transaction.SIGHASH_DEFAULT;
-  checkSighashTypeAllowed(sighashType, allowedSighashTypes);
-  const prevOuts = inputs.map((i, index) =>
-    getScriptAndAmountFromUtxo(index, i, cache),
-  );
-  const signingScripts = prevOuts.map(o => o.script);
-  const values = prevOuts.map(o => o.value);
-  const hashes = [];
-  const tapKeyHash = unsignedTx.hashForWitnessV1(
-    inputIndex,
-    signingScripts,
-    values,
-    sighashType,
-  );
-  hashes.push({ pubkey, hash: tapKeyHash });
-  if (input.tapInternalKey && !tapLeafHashToSign) {
-    const outputKey = (0, bip371_1.tweakInternalPubKey)(inputIndex, input);
-    if ((0, bip371_1.toXOnly)(pubkey).equals(outputKey)) {
-      const tapKeyHash = unsignedTx.hashForWitnessV1(
-        inputIndex,
-        signingScripts,
-        values,
-        sighashType,
-      );
-      hashes.push({ pubkey, hash: tapKeyHash });
-    }
-  }
-  const tapLeafHashes = (input.tapLeafScript || [])
-    .filter(tapLeaf => (0, psbtutils_1.pubkeyInScript)(pubkey, tapLeaf.script))
-    .map(tapLeaf => {
-      const hash = (0, bip341_1.tapleafHash)({
-        output: tapLeaf.script,
-        version: tapLeaf.leafVersion,
-      });
-      return Object.assign({ hash }, tapLeaf);
-    })
-    .filter(
-      tapLeaf => !tapLeafHashToSign || tapLeafHashToSign.equals(tapLeaf.hash),
-    )
-    .map(tapLeaf => {
-      const tapScriptHash = unsignedTx.hashForWitnessV1(
-        inputIndex,
-        signingScripts,
-        values,
-        transaction_1.Transaction.SIGHASH_DEFAULT,
-        tapLeaf.hash,
-      );
-      return {
-        pubkey,
-        hash: tapScriptHash,
-        leafHash: tapLeaf.hash,
-      };
-    });
-  return hashes.concat(tapLeafHashes);
+function getPrevoutTaprootKey(inputIndex, input, cache) {
+  const { script } = getScriptAndAmountFromUtxo(inputIndex, input, cache);
+  return (0, psbtutils_1.isP2TR)(script) ? script.subarray(2, 34) : null;
 }
-exports.getTaprootHashesForSigCustom = getTaprootHashesForSigCustom;
+function trimTaprootSig(signature) {
+  return signature.length === 64 ? signature : signature.subarray(0, 64);
+}
 function getTaprootHashesForSig(
   inputIndex,
   input,
@@ -1390,7 +1339,8 @@ function getTaprootHashesForSig(
   const values = prevOuts.map(o => o.value);
   const hashes = [];
   if (input.tapInternalKey && !tapLeafHashToSign) {
-    const outputKey = (0, bip371_1.tweakInternalPubKey)(inputIndex, input);
+    const outputKey =
+      getPrevoutTaprootKey(inputIndex, input, cache) || Buffer.from([]);
     if ((0, bip371_1.toXOnly)(pubkey).equals(outputKey)) {
       const tapKeyHash = unsignedTx.hashForWitnessV1(
         inputIndex,

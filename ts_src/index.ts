@@ -7,6 +7,7 @@ import * as script from './script';
 export { address, crypto, networks, payments, script };
 
 export { Block } from './block';
+/** @hidden */
 export { TaggedHashPrefix } from './crypto';
 export {
   Psbt,
@@ -17,15 +18,16 @@ export {
   HDSigner,
   HDSignerAsync,
   PsbtOutputExtendedAddress,
+  PsbtOutputExtended,
   getAllTaprootHashesForSig,
-  getTaprootHashesForSigCustom
 } from './psbt';
 export { witnessStackToScriptWitness } from './psbt/psbtutils';
 export { tapTreeToList } from './psbt/bip371';
 export { OPS as opcodes } from './ops';
 export { Transaction } from './transaction';
-
+/** @hidden */
 export { Network } from './networks';
+/** @hidden */
 export {
   Payment,
   PaymentCreator,
